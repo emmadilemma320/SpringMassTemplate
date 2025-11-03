@@ -54,7 +54,7 @@ public class BParticleSimMesh : MonoBehaviour
      * Here you need to publicly provide the:
      * - the ground plane transform (Transform)
      * - handlePlaneCollisions flag (bool)
-     * - particle mass (float)
+     * - particle mass (float) 
      * - useGravity flag (bool)
      * - gravity value (Vector3)
      * Here you need to privately provide the:
@@ -62,6 +62,20 @@ public class BParticleSimMesh : MonoBehaviour
      * - array of particles (BParticle[])
      * - the plane (BPlane)
      ***/
+
+    // public variables
+    public float particle_mass = 1; // kg 
+    public bool useGravity = true;
+    public Vector3 gravity = (0, -9.8, 0)*particle_mass;
+
+    // private varibales
+    private const int n = 1; // size of array
+    private BParticle[] particles; 
+    private BPlane plane;
+    private Mesh mesh;
+
+    private Vector3[] new_positions; // x_{i, new}
+    private Vector3[] new_velocitys; // v_{i, new}
 
 
 
@@ -79,12 +93,19 @@ public class BParticleSimMesh : MonoBehaviour
     ///         on initialization. Then when updating you need to remember a particular trick about the spring forces
     ///         generated between particles. 
     /// </summary>
-    void Start()
-    {
-
+    void Start(){
+        initPlane();
+        initParticles();
     }
 
 
+    private void initPlane(){}
+
+    private void initParticles(){
+        for(int i = 0; i < n; i++){
+            particles[i];
+        }
+    }
 
     /*** BIG HINT: My solution code has as least the following functions
      * InitParticles()
@@ -95,6 +116,65 @@ public class BParticleSimMesh : MonoBehaviour
      ***/
 
 
+    public void fixedUpdate(){
+        // first we calculate all the new velocities and positions (w/o updating them yet)
+        resetParticleForces();
+
+        for(int i = 0; i < n; i++) {
+            a = force()/particle_mass;
+            new_velocitys[i] = particles[i].velocity + a*Time.fixedDeltaTime; // v_{i, new} = v_i + a_i * dt
+            new_positions[i] = particles[i].position + particles[i].velocity*Time.fixedDeltaTime; // x_{i, new} = x_i + v_i*dt
+        }
+
+        // then we update them all
+        for(int i = 0; i < n; i++){
+            particles[i].velocity = new_velocitys[i]; 
+            particles[i].position = new_positions[i]; 
+        }
+
+        updateMesh();
+    }
+
+    private void updateMesh(){}
+
+    private void resetParticleForces(){
+        // reset each particle force to gravity (0.0 if we are not using gravity)
+        for(int i =0; i < n; i++){
+            particles[i].currentForces = (useGravity)? gravity : Vector3(0.0, 0.0, 0.0);
+        }
+
+        for(int i = 0; i < n; i++){
+            BParticle curr_particle = particles[i];
+
+            // add the ground contact force to current forces
+            curr_particle.currentForces += 0.0; // any external forces?
+
+
+            // add any particle-particle spring forces that have not already been calculated
+            for(int j = 0; j < particles[i].attachedSprings.Count; j++){
+                BSpring curr_spring = particles[i].attachedSprings[j];
+
+                if (curr_spring.attachedParticle > i) {
+                    // if the index of the other particle in the string is less than the index of our current particle, we have calculated the spring force already
+                    // if not, we calculate f_ij and add it to force for both the current and corresponding particles
+                    Vector3 f_ij = springForce(curr_particle, curr_spring); 
+                    curr_particle.currentForces += f_ij;
+                    curr_spring.attachedParticle.currentForces -= f_ij;
+                }
+
+            }
+        }
+    }
+
+    private Vector3 springForce(BParticle i, BSpring s){
+        // this is just a helper function for readability, it is only called per particle-particle spring
+        Vector3 f = new Vector3(0.0, 0.0, 0.0);
+        Vector3 differenceVector = i.position - s.attachedParticle.position;
+        Vector3 dVnormalized = differenceVector/differenceVector.magnitude;
+        f += s.ks*(s.restLength - differenceVector.magnitude)*dVnormalized; 
+        f += s.kd*(Vector3.Dot(i.velocity - s.attachedParticle.velocity, dVnormalized)*dVnormalized);
+        return f;
+    }
 
     /// <summary>
     /// Draw a frame with some helper debug render code
