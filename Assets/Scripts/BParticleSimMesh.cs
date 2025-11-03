@@ -19,7 +19,7 @@ public class BParticleSimMesh : MonoBehaviour
     {
         public float kd;                        // damping coefficient
         public float ks;                        // spring coefficient
-        public float restLength;                // rest length of this spring (think about this ... may not even be needed o_0
+        public float restLength;                // rest length of this spring (think about this ... may not even be needed o_0)
         public Vector3 attachPoint;             // the attached point on the contact surface
     }
 
@@ -64,15 +64,18 @@ public class BParticleSimMesh : MonoBehaviour
      ***/
 
     // public variables
-    public const float particle_mass = 1; // kg 
+    // public Transform groundPlaneTransform; ???
+    public bool handlePlaneCollisions = true;
+    public const float particle_mass = 1.0f; // kg 
     public bool useGravity = true;
     public Vector3 gravity = new Vector3(0.0f*particle_mass, -9.8f*particle_mass, 0.0f*particle_mass);
 
     // private varibales
-    private const int n = 1; // size of array
-    private BParticle[] particles; 
-    private BPlane plane;
     private Mesh mesh;
+    private const int n = 1; // size of array
+    private BParticle[] particles = new BParticle[n]; 
+    private BPlane plane;
+    
 
     private Vector3[] new_positions; // x_{i, new}
     private Vector3[] new_velocitys; // v_{i, new}
@@ -99,11 +102,38 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
 
-    private void initPlane(){}
+    private void initPlane(){
+        plane = new BPlane();
+        plane.position = new Vector3(0.0f, -3.36f, 0.0f);
+        plane.normal = new Vector3(0.0f, 1.0f, 0.0f);
+    }
 
     private void initParticles(){
+        BContactSpring cS= new BContactSpring();
+        cS.kd = contactSpringKD; 
+        cS.ks = contactSpringKS;
+        cS.restLength = 0.0f;
+        cS.attachPoint = plane.position;
+
+
         for(int i = 0; i < n; i++){
-            //particles[i];
+            BParticle p = new BParticle();
+            /*** create new BParticle
+                public Vector3 position;                // position information
+                public Vector3 velocity;                // velocity information
+                public float mass;                      // mass information
+                public BContactSpring contactSpring;    // Special spring for contact forces
+                public bool attachedToContact;          // is this particle currently attached to a contact (ground plane contact)
+                public List<BSpring> attachedSprings;   // all attached springs, as a list in case we want to modify later fast
+                public Vector3 currentForces; 
+            ***/
+            //p.position = [position from Mesh]
+            p.velocity = new Vector3(0.0f, 0.0f, 0.0f);
+            p.mass = particle_mass;
+            p.contactSpring = cS;
+            //p.attachedToContact = t/f;
+            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
+            particles[i] = p;
         }
     }
 
@@ -121,8 +151,8 @@ public class BParticleSimMesh : MonoBehaviour
         resetParticleForces();
 
         for(int i = 0; i < n; i++) {
-            Vector3 a = particles[i].currentForces/particle_mass;
-            new_velocitys[i] = particles[i].velocity + a*Time.fixedDeltaTime; // v_{i, new} = v_i + a_i * dt
+            Vector3 acceleration = particles[i].currentForces/particle_mass;
+            new_velocitys[i] = particles[i].velocity + acceleration*Time.fixedDeltaTime; // v_{i, new} = v_i + a_i * dt
             new_positions[i] = particles[i].position + particles[i].velocity*Time.fixedDeltaTime; // x_{i, new} = x_i + v_i*dt
         }
 
@@ -138,6 +168,12 @@ public class BParticleSimMesh : MonoBehaviour
     private void updateMesh(){}
 
     private void resetParticleForces(){
+        /***
+            There are three types of forces that are acting on these particles:
+                1) gravity
+                2) particle-particle spring forces
+                3) ground penetration penalty forces
+        ***/
         // reset each particle force to gravity (0.0 if we are not using gravity)
         for(int i =0; i < n; i++){
             particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
