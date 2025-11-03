@@ -29,7 +29,7 @@ public class BParticleSimMesh : MonoBehaviour
         public Vector3 velocity;                // velocity information
         public float mass;                      // mass information
         public BContactSpring contactSpring;    // Special spring for contact forces
-        public bool attachedToContact;          // is thi sparticle currently attached to a contact (ground plane contact)
+        public bool attachedToContact;          // is this particle currently attached to a contact (ground plane contact)
         public List<BSpring> attachedSprings;   // all attached springs, as a list in case we want to modify later fast
         public Vector3 currentForces;           // accumulate forces here on each step        
     }
@@ -70,15 +70,15 @@ public class BParticleSimMesh : MonoBehaviour
     public bool useGravity = true;
     public Vector3 gravity = new Vector3(0.0f*particle_mass, -9.8f*particle_mass, 0.0f*particle_mass);
 
-    // private varibales
+    // private variables
     private Mesh mesh;
     private const int n = 1; // size of array
     private BParticle[] particles = new BParticle[n]; 
     private BPlane plane;
     
 
-    private Vector3[] new_positions; // x_{i, new}
-    private Vector3[] new_velocitys; // v_{i, new}
+    private Vector3[] new_positions = new Vector3[n]; // x_{i, new}
+    private Vector3[] new_velocitys = new Vector3[n]; // v_{i, new}
 
 
 
@@ -127,7 +127,7 @@ public class BParticleSimMesh : MonoBehaviour
                 public List<BSpring> attachedSprings;   // all attached springs, as a list in case we want to modify later fast
                 public Vector3 currentForces; 
             ***/
-            //p.position = [position from Mesh]
+            //p.position = [position from Mesh *changing coordinate system*]
             p.velocity = new Vector3(0.0f, 0.0f, 0.0f);
             p.mass = particle_mass;
             p.contactSpring = cS;
@@ -147,16 +147,16 @@ public class BParticleSimMesh : MonoBehaviour
 
 
     public void fixedUpdate(){
-        // first we calculate all the new velocities and positions (w/o updating them yet)
+        
         resetParticleForces();
 
+        // First we calculate all the particles new velocities and positions Symplectic Euler integration scheme (slide 45) *w/o updating them yet*
         for(int i = 0; i < n; i++) {
-            Vector3 acceleration = particles[i].currentForces/particle_mass;
-            new_velocitys[i] = particles[i].velocity + acceleration*Time.fixedDeltaTime; // v_{i, new} = v_i + a_i * dt
-            new_positions[i] = particles[i].position + particles[i].velocity*Time.fixedDeltaTime; // x_{i, new} = x_i + v_i*dt
+            new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
+            new_positions[i] = particles[i].position + Time.fixedDeltaTime*new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
         }
 
-        // then we update them all
+        // Next, we update them all
         for(int i = 0; i < n; i++){
             particles[i].velocity = new_velocitys[i]; 
             particles[i].position = new_positions[i]; 
@@ -165,25 +165,31 @@ public class BParticleSimMesh : MonoBehaviour
         updateMesh();
     }
 
-    private void updateMesh(){}
+    private void updateMesh(){
+        for(int i = 0; i < n; i++){
+            // don't forget to change back into Mesh Coordinate system!
+        }
+    }
 
     private void resetParticleForces(){
         /***
             There are three types of forces that are acting on these particles:
                 1) gravity
-                2) particle-particle spring forces
-                3) ground penetration penalty forces
+                2) ground penetration penalty forces
+                3) particle-particle spring forces
         ***/
-        // reset each particle force to gravity (0.0 if we are not using gravity)
-        for(int i =0; i < n; i++){
-            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
-        }
 
         for(int i = 0; i < n; i++){
             BParticle curr_particle = particles[i];
 
-            // add the ground contact force to current forces
-            curr_particle.currentForces += new Vector3(0, 0, 0); // any external forces?
+            // 1) gravity *if* useGravity is toggled on
+            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
+
+            // 2) ground penetration penalty forces
+            // -k_s((x_p - x_g)dot n)n - k_d*v_p
+            Vector3 ground_penalty = new Vector3(0f, 0f, 0f);
+            BContactSpring curr_contact_spring = curr_particle.contactSpring;
+            curr_particle.currentForces += ground_penalty;
 
 
             // add any particle-particle spring forces that have not already been calculated
