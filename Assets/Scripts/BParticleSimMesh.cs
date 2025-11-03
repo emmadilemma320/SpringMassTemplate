@@ -64,9 +64,9 @@ public class BParticleSimMesh : MonoBehaviour
      ***/
 
     // public variables
-    public float particle_mass = 1; // kg 
+    public const float particle_mass = 1; // kg 
     public bool useGravity = true;
-    public Vector3 gravity = (0, -9.8, 0)*particle_mass;
+    public Vector3 gravity = new Vector3(0.0f*particle_mass, -9.8f*particle_mass, 0.0f*particle_mass);
 
     // private varibales
     private const int n = 1; // size of array
@@ -103,7 +103,7 @@ public class BParticleSimMesh : MonoBehaviour
 
     private void initParticles(){
         for(int i = 0; i < n; i++){
-            particles[i];
+            //particles[i];
         }
     }
 
@@ -121,7 +121,7 @@ public class BParticleSimMesh : MonoBehaviour
         resetParticleForces();
 
         for(int i = 0; i < n; i++) {
-            a = force()/particle_mass;
+            Vector3 a = particles[i].currentForces/particle_mass;
             new_velocitys[i] = particles[i].velocity + a*Time.fixedDeltaTime; // v_{i, new} = v_i + a_i * dt
             new_positions[i] = particles[i].position + particles[i].velocity*Time.fixedDeltaTime; // x_{i, new} = x_i + v_i*dt
         }
@@ -140,14 +140,14 @@ public class BParticleSimMesh : MonoBehaviour
     private void resetParticleForces(){
         // reset each particle force to gravity (0.0 if we are not using gravity)
         for(int i =0; i < n; i++){
-            particles[i].currentForces = (useGravity)? gravity : Vector3(0.0, 0.0, 0.0);
+            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
         }
 
         for(int i = 0; i < n; i++){
             BParticle curr_particle = particles[i];
 
             // add the ground contact force to current forces
-            curr_particle.currentForces += 0.0; // any external forces?
+            curr_particle.currentForces += new Vector3(0, 0, 0); // any external forces?
 
 
             // add any particle-particle spring forces that have not already been calculated
@@ -159,7 +159,7 @@ public class BParticleSimMesh : MonoBehaviour
                     // if not, we calculate f_ij and add it to force for both the current and corresponding particles
                     Vector3 f_ij = springForce(curr_particle, curr_spring); 
                     curr_particle.currentForces += f_ij;
-                    curr_spring.attachedParticle.currentForces -= f_ij;
+                    particles[curr_spring.attachedParticle].currentForces -= f_ij;
                 }
 
             }
@@ -168,11 +168,12 @@ public class BParticleSimMesh : MonoBehaviour
 
     private Vector3 springForce(BParticle i, BSpring s){
         // this is just a helper function for readability, it is only called per particle-particle spring
-        Vector3 f = new Vector3(0.0, 0.0, 0.0);
-        Vector3 differenceVector = i.position - s.attachedParticle.position;
+        Vector3 f = new Vector3(0.0f, 0.0f, 0.0f);
+        BParticle attached = particles[s.attachedParticle];
+        Vector3 differenceVector = i.position - attached.position;
         Vector3 dVnormalized = differenceVector/differenceVector.magnitude;
         f += s.ks*(s.restLength - differenceVector.magnitude)*dVnormalized; 
-        f += s.kd*(Vector3.Dot(i.velocity - s.attachedParticle.velocity, dVnormalized)*dVnormalized);
+        f += s.kd*(Vector3.Dot(i.velocity - attached.velocity, dVnormalized)*dVnormalized);
         return f;
     }
 
