@@ -148,20 +148,23 @@ public class BParticleSimMesh : MonoBehaviour
 
     public void fixedUpdate(){
         
+        // First we calculate the Forces acting on each particle
         resetParticleForces();
 
-        // First we calculate all the particles new velocities and positions Symplectic Euler integration scheme (slide 45) *w/o updating them yet*
+        // Next, we use that forces to calculate all the particles new velocities and positions using the Symplectic Euler integration scheme (slide 45)
+        // *We don't update the actual particle information until they have been calculated for all the particles*
         for(int i = 0; i < n; i++) {
             new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
             new_positions[i] = particles[i].position + Time.fixedDeltaTime*new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
         }
 
-        // Next, we update them all
+        // Once we are done calculating each particles new velocity and position, we update them
         for(int i = 0; i < n; i++){
             particles[i].velocity = new_velocitys[i]; 
             particles[i].position = new_positions[i]; 
         }
 
+        // Finally, we update the mesh with the new positions
         updateMesh();
     }
 
@@ -183,13 +186,23 @@ public class BParticleSimMesh : MonoBehaviour
             BParticle curr_particle = particles[i];
 
             // 1) gravity *if* useGravity is toggled on
-            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
+            curr_particle.currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
 
             // 2) ground penetration penalty forces
-            // -k_s((x_p - x_g)dot n)n - k_d*v_p
-            Vector3 ground_penalty = new Vector3(0f, 0f, 0f);
-            BContactSpring curr_contact_spring = curr_particle.contactSpring;
-            curr_particle.currentForces += ground_penalty;
+                // -k_s((x_p - x_g)dot n)n - k_d*v_p
+                // we only want to do this one if a collision is detected
+                // how we detect a collision?
+            
+            // first, we update the attach point to be directly under the position of the current particle (using the y-coor of the plane)
+            curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z)
+            // Next, we detect if there is a collision using the dot product of the normal vector of the plane and the vector from the position of the particle to the attach point
+            Vector3 d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal) // (x_p-x_g)dot n
+            
+            if(d < 0.0){ // (x_p-x_g)dot n < 0
+                BContactSpring curr_contact_spring = curr_particle.contactSpring;
+                Vector3 ground_penalty = -1*curr_contact_spring.k_s*d*plane.normal - curr_contact_spring.k_d*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
+                curr_particle.currentForces += ground_penalty;
+            }
 
 
             // add any particle-particle spring forces that have not already been calculated
