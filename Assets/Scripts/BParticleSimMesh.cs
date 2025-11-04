@@ -147,7 +147,7 @@ public class BParticleSimMesh : MonoBehaviour
                     curr_spring.ks = defaultSpringKS;
                     curr_spring.restLength = (particles[i].position - particles[j].position).magnitude; // default distance between the points i and j
                     curr_spring.attachedParticle = j;
-                particles[i].attachedSprings.add(curr_spring);
+                particles[i].attachedSprings.Add(curr_spring);
             }
         }
     }
@@ -209,11 +209,11 @@ public class BParticleSimMesh : MonoBehaviour
             // first, we update the attach point to be directly under the position of the current particle (using the y-coor of the plane)
             curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
             // Next, we detect if there is a collision using the dot product of the normal vector of the plane and the vector from the position of the particle to the attach point
-            Vector3 d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal); // (x_p-x_g)dot n
+            float d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal); // (x_p-x_g)dot n
             if(d < 0.0){ // (x_p-x_g)dot n < 0
                 // if there is a collision, we calculate the ground contact penetration penalty spring equation given in the assignment
                 BContactSpring curr_contact_spring = curr_particle.contactSpring;
-                Vector3 ground_penalty = -1*curr_contact_spring.k_s*d*plane.normal - curr_contact_spring.k_d*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
+                Vector3 ground_penalty = -1*curr_contact_spring.ks*d*plane.normal - curr_contact_spring.kd*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
                 // and add it to the current forces variable of our current particle
                 curr_particle.currentForces += ground_penalty;
             }
@@ -225,20 +225,20 @@ public class BParticleSimMesh : MonoBehaviour
                 // the springs are already made such that none are doubled up
             for(int j = 0; j < particles[i].attachedSprings.Count; j++){
                 BSpring curr_spring = particles[i].attachedSprings[j];
-                Vector3 f_ij = springForce(curr_particle, curr_spring); 
+                Vector3 f_ij = springForce(curr_particle, particles[curr_spring.attachedParticle], curr_spring); 
                 curr_particle.currentForces += f_ij;
                 particles[curr_spring.attachedParticle].currentForces -= f_ij; // f_ji = -f_ij
             }
         }
     }
 
-    private Vector3 springForce(BParticle i, BSpring s){
+    private Vector3 springForce(BParticle i, BParticle j, BSpring s){
         // this is just a helper function for readability, it is only called per particle-particle spring
         // k_s ((l-|x_i - x_j|) (x_i - x_j)/|x_i - x_j|) - k_d((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|)(x_i - x_j)/|x_i - x_j|
         Vector3 f = new Vector3(0.0f, 0.0f, 0.0f);
-        Vector3 differenceVector = i.position - particles[s.attachedParticle].position; // x_i - x_j
+        Vector3 differenceVector = i.position - j.position; // x_i - x_j
         f += s.ks*(s.restLength - differenceVector.magnitude)*differenceVector.normalized; // k_s * (l-|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|)
-        f += s.kd*(Vector3.Dot(i.velocity - attached.velocity, differenceVector.normalized)*differenceVector.normalized); // k_d * ((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|
+        f += s.kd*(Vector3.Dot(i.velocity - j.velocity, differenceVector.normalized)*differenceVector.normalized); // k_d * ((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|
         return f;
     }
 
