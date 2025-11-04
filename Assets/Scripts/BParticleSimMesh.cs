@@ -132,6 +132,11 @@ public class BParticleSimMesh : MonoBehaviour
             p.mass = particle_mass;
             p.contactSpring = cS;
             //p.attachedToContact = t/f;
+            p.attachedSprings = new List<BSpring>(n);
+            for(int j = i+1; j < n; j++){
+                // to avoid doubling up springs, we only add those to springs where j > i
+                // that way, if j < i the spring is in the list for the j-th particle
+            }
             particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
             particles[i] = p;
         }
@@ -154,7 +159,7 @@ public class BParticleSimMesh : MonoBehaviour
         // Next, we use that forces to calculate all the particles new velocities and positions using the Symplectic Euler integration scheme (slide 45)
         // *We don't update the actual particle information until they have been calculated for all the particles*
         for(int i = 0; i < n; i++) {
-            new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
+            new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[i].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
             new_positions[i] = particles[i].position + Time.fixedDeltaTime*new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
         }
 
@@ -190,13 +195,11 @@ public class BParticleSimMesh : MonoBehaviour
 
             // 2) ground penetration penalty forces
                 // -k_s((x_p - x_g)dot n)n - k_d*v_p
-                // we only want to do this one if a collision is detected
-                // how we detect a collision?
             
             // first, we update the attach point to be directly under the position of the current particle (using the y-coor of the plane)
-            curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z)
+            curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
             // Next, we detect if there is a collision using the dot product of the normal vector of the plane and the vector from the position of the particle to the attach point
-            Vector3 d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal) // (x_p-x_g)dot n
+            Vector3 d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal); // (x_p-x_g)dot n
             if(d < 0.0){ // (x_p-x_g)dot n < 0
                 // if there is a collision, we calculate the ground contact penetration penalty spring equation given in the assignment
                 BContactSpring curr_contact_spring = curr_particle.contactSpring;
@@ -208,18 +211,13 @@ public class BParticleSimMesh : MonoBehaviour
 
             // add any particle-particle spring forces that have not already been calculated
             // 3) particle-particle spring forces
-            // we only calculate the forces that have not been calculated previously
+                // for each spring in the list, we add the spring force to both our current particle and the attached particle
+                // the springs are already made such that none are doubled up
             for(int j = 0; j < particles[i].attachedSprings.Count; j++){
                 BSpring curr_spring = particles[i].attachedSprings[j];
-
-                if (curr_spring.attachedParticle > i) {
-                    // if the index of the other particle in the string is less than the index of our current particle, we have calculated the spring force already
-                    // if not, we calculate f_ij and add it to force for both the current and corresponding particles
-                    Vector3 f_ij = springForce(curr_particle, curr_spring); 
-                    curr_particle.currentForces += f_ij;
-                    particles[curr_spring.attachedParticle].currentForces -= f_ij;
-                }
-
+                Vector3 f_ij = springForce(curr_particle, curr_spring); 
+                curr_particle.currentForces += f_ij;
+                particles[curr_spring.attachedParticle].currentForces -= f_ij;
             }
         }
     }
