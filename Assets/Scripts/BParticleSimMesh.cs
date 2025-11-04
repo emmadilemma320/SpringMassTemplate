@@ -131,14 +131,24 @@ public class BParticleSimMesh : MonoBehaviour
             p.velocity = new Vector3(0.0f, 0.0f, 0.0f);
             p.mass = particle_mass;
             p.contactSpring = cS;
-            //p.attachedToContact = t/f;
-            p.attachedSprings = new List<BSpring>(n);
+            p.attachedToContact = true;
+            p.attachedSprings = new List<BSpring>();
+            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
+            particles[i] = p;
+        }
+
+        // we need to do the springs seperately because we need to ensure all positions have been correctly initialized
+        for(int i = 0; i < n; i++){
             for(int j = i+1; j < n; j++){
                 // to avoid doubling up springs, we only add those to springs where j > i
                 // that way, if j < i the spring is in the list for the j-th particle
+                BSpring curr_spring = new BSpring();
+                    curr_spring.kd = defaultSpringKD;
+                    curr_spring.ks = defaultSpringKS;
+                    curr_spring.restLength = (particles[i].position - particles[j].position).magnitude; // default distance between the points i and j
+                    curr_spring.attachedParticle = j;
+                particles[i].attachedSprings.add(curr_spring);
             }
-            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
-            particles[i] = p;
         }
     }
 
@@ -217,19 +227,18 @@ public class BParticleSimMesh : MonoBehaviour
                 BSpring curr_spring = particles[i].attachedSprings[j];
                 Vector3 f_ij = springForce(curr_particle, curr_spring); 
                 curr_particle.currentForces += f_ij;
-                particles[curr_spring.attachedParticle].currentForces -= f_ij;
+                particles[curr_spring.attachedParticle].currentForces -= f_ij; // f_ji = -f_ij
             }
         }
     }
 
     private Vector3 springForce(BParticle i, BSpring s){
         // this is just a helper function for readability, it is only called per particle-particle spring
+        // k_s ((l-|x_i - x_j|) (x_i - x_j)/|x_i - x_j|) - k_d((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|)(x_i - x_j)/|x_i - x_j|
         Vector3 f = new Vector3(0.0f, 0.0f, 0.0f);
-        BParticle attached = particles[s.attachedParticle];
-        Vector3 differenceVector = i.position - attached.position;
-        Vector3 dVnormalized = differenceVector/differenceVector.magnitude;
-        f += s.ks*(s.restLength - differenceVector.magnitude)*dVnormalized; 
-        f += s.kd*(Vector3.Dot(i.velocity - attached.velocity, dVnormalized)*dVnormalized);
+        Vector3 differenceVector = i.position - particles[s.attachedParticle].position; // x_i - x_j
+        f += s.ks*(s.restLength - differenceVector.magnitude)*differenceVector.normalized; // k_s * (l-|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|)
+        f += s.kd*(Vector3.Dot(i.velocity - attached.velocity, differenceVector.normalized)*differenceVector.normalized); // k_d * ((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|
         return f;
     }
 
