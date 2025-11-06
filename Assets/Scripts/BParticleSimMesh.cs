@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using System.Threading.Tasks.Dataflow;
 using UnityEngine;
 
 // Check this out we can require components be on a game object!
@@ -108,7 +110,7 @@ public class BParticleSimMesh : MonoBehaviour
         var plane_object = GameObject.Find("GroundPlane");
         plane = new BPlane();
         plane.position = plane_object.transform.position;
-        plane.normal = new Vector3(0.0f, 1.0f, 0.0f);
+        plane.normal = plane_object.transform.rotation * Vector3.up;
     }
 
     private void initParticles(){
@@ -118,12 +120,15 @@ public class BParticleSimMesh : MonoBehaviour
         cS.restLength = 0.0f;
         cS.attachPoint = plane.position;
 
+        // we get the vertices from the Mesh Filter, and Group By to avoid duplicates
         var vertices = GetComponent<MeshFilter>().mesh.vertices.GroupBy(p => p);
 
-        //print(typeof(GetComponent<MeshFilter>().mesh.vertices));
+        print(vertices.GetType());
         print(vertices.Count);
 
+        int i = 0;
         foreach(var v in vertices){
+
             BParticle p = new BParticle();
             /*** create new BParticle
                 public Vector3 position;                // position information
@@ -140,12 +145,12 @@ public class BParticleSimMesh : MonoBehaviour
             p.contactSpring = cS;
             p.attachedToContact = true;
             p.attachedSprings = new List<BSpring>();
-            particles[i].currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
-            particles[i] = p;
+            p.currentForces = (useGravity)? gravity : Vector3.zero;
+            particles[i] = p; i++;
         }
 
         // we need to do the springs seperately because we need to ensure all positions have been correctly initialized
-        for(int i = 0; i < n; i++){
+        for(int i = 0; i < (n-1); i++){
             for(int j = i+1; j < n; j++){
                 // to avoid doubling up springs, we only add those to springs where j > i
                 // that way, if j < i the spring is in the list for the j-th particle
@@ -191,8 +196,12 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
     private void updateMesh(){
-        for(int i = 0; i < n; i++){
-            // don't forget to change back into Mesh Coordinate system!
+        var vertices = GetComponent<MeshFilter>().mesh.vertices.GroupBy(p => p);
+        int i = 0;
+        foreach(var v in vertices){
+            foreach (var d in v) { // we have to update each of the duplicates
+                d.position = transform.InverseTransformPoint(particles[i].position); // use the function InverseTransformPoint Mesh Coordinate system!
+            } i++;
         }
     }
 
