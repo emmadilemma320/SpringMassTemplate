@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 // Check this out we can require components be on a game object!
 [RequireComponent(typeof(MeshFilter))]
+
 
 public class BParticleSimMesh : MonoBehaviour
 {
@@ -72,7 +74,7 @@ public class BParticleSimMesh : MonoBehaviour
 
     // private variables
     private Mesh mesh;
-    private const int n = 1; // size of array
+    private const int n = 8; // size of array
     private BParticle[] particles = new BParticle[n]; 
     private BPlane plane;
     
@@ -103,8 +105,9 @@ public class BParticleSimMesh : MonoBehaviour
 
 
     private void initPlane(){
+        var plane_object = GameObject.Find("GroundPlane");
         plane = new BPlane();
-        plane.position = new Vector3(0.0f, -3.36f, 0.0f);
+        plane.position = plane_object.transform.position;
         plane.normal = new Vector3(0.0f, 1.0f, 0.0f);
     }
 
@@ -115,8 +118,12 @@ public class BParticleSimMesh : MonoBehaviour
         cS.restLength = 0.0f;
         cS.attachPoint = plane.position;
 
+        var vertices = GetComponent<MeshFilter>().mesh.vertices.GroupBy(p => p);
 
-        for(int i = 0; i < n; i++){
+        //print(typeof(GetComponent<MeshFilter>().mesh.vertices));
+        print(vertices.Count);
+
+        foreach(var v in vertices){
             BParticle p = new BParticle();
             /*** create new BParticle
                 public Vector3 position;                // position information
@@ -127,8 +134,8 @@ public class BParticleSimMesh : MonoBehaviour
                 public List<BSpring> attachedSprings;   // all attached springs, as a list in case we want to modify later fast
                 public Vector3 currentForces; 
             ***/
-            //p.position = [position from Mesh *changing coordinate system*]
-            p.velocity = new Vector3(0.0f, 0.0f, 0.0f);
+            p.position = transform.TransformPoint(v.FirstOrDefault());
+            p.velocity = Vector3.zero;
             p.mass = particle_mass;
             p.contactSpring = cS;
             p.attachedToContact = true;
@@ -247,7 +254,7 @@ public class BParticleSimMesh : MonoBehaviour
     /// </summary>
     public void Update()
     {
-        /* This will work if you have a correctly made particles array
+        // This will work if you have a correctly made particles array
         if (debugRender)
         {
             int particleCount = particles.Length;
@@ -262,6 +269,6 @@ public class BParticleSimMesh : MonoBehaviour
                 }
             }
         }
-        */
+        
     }
 }
