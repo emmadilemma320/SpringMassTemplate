@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using System.Threading.Tasks.Dataflow;
+using System.Runtime.InteropServices;
+
+//using System.Numerics;
+//using System.Threading.Tasks.Dataflow;
 using UnityEngine;
 
 // Check this out we can require components be on a game object!
@@ -101,6 +103,7 @@ public class BParticleSimMesh : MonoBehaviour
     ///         generated between particles. 
     /// </summary>
     void Start(){
+        mesh = GetComponent<MeshFilter>().mesh;
         initPlane();
         initParticles();
     }
@@ -121,10 +124,10 @@ public class BParticleSimMesh : MonoBehaviour
         cS.attachPoint = plane.position;
 
         // we get the vertices from the Mesh Filter, and Group By to avoid duplicates
-        var vertices = GetComponent<MeshFilter>().mesh.vertices.GroupBy(p => p);
+        var vertices = mesh.vertices.GroupBy(p => p);
 
-        print(vertices.GetType());
-        print(vertices.Count);
+        //print(vertices.GetType());
+        //print(vertices.Count);
 
         int i = 0;
         foreach(var v in vertices){
@@ -145,12 +148,12 @@ public class BParticleSimMesh : MonoBehaviour
             p.contactSpring = cS;
             p.attachedToContact = true;
             p.attachedSprings = new List<BSpring>();
-            p.currentForces = (useGravity)? gravity : Vector3.zero;
+            p.currentForces = Vector3.zero;
             particles[i] = p; i++;
         }
 
         // we need to do the springs seperately because we need to ensure all positions have been correctly initialized
-        for(int i = 0; i < (n-1); i++){
+        for(i = 0; i < (n-1); i++){
             for(int j = i+1; j < n; j++){
                 // to avoid doubling up springs, we only add those to springs where j > i
                 // that way, if j < i the spring is in the list for the j-th particle
@@ -173,7 +176,7 @@ public class BParticleSimMesh : MonoBehaviour
      ***/
 
 
-    public void fixedUpdate(){
+    public void FixedUpdate(){
         
         // First we calculate the Forces acting on each particle
         resetParticleForces();
@@ -182,7 +185,8 @@ public class BParticleSimMesh : MonoBehaviour
         // *We don't update the actual particle information until they have been calculated for all the particles*
         for(int i = 0; i < n; i++) {
             new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[i].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
-            new_positions[i] = particles[i].position + Time.fixedDeltaTime*new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
+            new_positions[i] = particles[i].position + Time.fixedDeltaTime * new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
+            print(new_velocitys[i]); print(new_positions[i]);
         }
 
         // Once we are done calculating each particles new velocity and position, we update them
@@ -196,13 +200,18 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
     private void updateMesh(){
-        var vertices = GetComponent<MeshFilter>().mesh.vertices.GroupBy(p => p);
+        var vertices = mesh.vertices.GroupBy(p => p);
         int i = 0;
-        foreach(var v in vertices){
-            foreach (var d in v) { // we have to update each of the duplicates
-                d.position = transform.InverseTransformPoint(particles[i].position); // use the function InverseTransformPoint Mesh Coordinate system!
-            } i++;
+        foreach (var v in vertices)
+        {
+            foreach (var d in v)
+            { // we have to update each of the duplicates
+                //d = transform.InverseTransformPoint(particles[i].position); // use the function InverseTransformPoint Mesh Coordinate system!
+            }
+            i++;
         }
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
     }
 
     private void resetParticleForces(){
@@ -217,7 +226,7 @@ public class BParticleSimMesh : MonoBehaviour
             BParticle curr_particle = particles[i];
 
             // 1) gravity *if* useGravity is toggled on
-            curr_particle.currentForces = (useGravity)? gravity : new Vector3(0.0f, 0.0f, 0.0f);
+            particles[i].currentForces = (useGravity)? gravity : Vector3.zero;
 
             // 2) ground penetration penalty forces
                 // -k_s((x_p - x_g)dot n)n - k_d*v_p
@@ -231,7 +240,7 @@ public class BParticleSimMesh : MonoBehaviour
                 BContactSpring curr_contact_spring = curr_particle.contactSpring;
                 Vector3 ground_penalty = -1*curr_contact_spring.ks*d*plane.normal - curr_contact_spring.kd*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
                 // and add it to the current forces variable of our current particle
-                curr_particle.currentForces += ground_penalty;
+                particles[i].currentForces += ground_penalty;
             }
 
 
@@ -241,20 +250,20 @@ public class BParticleSimMesh : MonoBehaviour
                 // the springs are already made such that none are doubled up
             for(int j = 0; j < particles[i].attachedSprings.Count; j++){
                 BSpring curr_spring = particles[i].attachedSprings[j];
-                Vector3 f_ij = springForce(curr_particle, particles[curr_spring.attachedParticle], curr_spring); 
-                curr_particle.currentForces += f_ij;
-                particles[curr_spring.attachedParticle].currentForces -= f_ij; // f_ji = -f_ij
+                Vector3 f_ij = springForce(particles[i], particles[particles[i].attachedSprings[j].attachedParticle], particles[i].attachedSprings[j]); 
+                particles[i].currentForces += f_ij;
+                particles[particles[i].attachedSprings[j].attachedParticle].currentForces -= f_ij; // f_ji = -f_ij
             }
         }
     }
 
-    private Vector3 springForce(BParticle i, BParticle j, BSpring s){
+    private Vector3 springForce(BParticle p_i, BParticle p_j, BSpring s){
         // this is just a helper function for readability, it is only called per particle-particle spring
         // k_s ((l-|x_i - x_j|) (x_i - x_j)/|x_i - x_j|) - k_d((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|)(x_i - x_j)/|x_i - x_j|
-        Vector3 f = new Vector3(0.0f, 0.0f, 0.0f);
-        Vector3 differenceVector = i.position - j.position; // x_i - x_j
+        Vector3 f = Vector3.zero;
+        Vector3 differenceVector = p_i.position - p_j.position; // x_i - x_j
         f += s.ks*(s.restLength - differenceVector.magnitude)*differenceVector.normalized; // k_s * (l-|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|)
-        f += s.kd*(Vector3.Dot(i.velocity - j.velocity, differenceVector.normalized)*differenceVector.normalized); // k_d * ((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|
+        f -= s.kd*(Vector3.Dot(p_i.velocity - p_j.velocity, differenceVector.normalized)*differenceVector.normalized); // k_d * ((v_i - v_j)dot(x_i - x_j)/|x_i - x_j|) * (x_i - x_j)/|x_i - x_j|
         return f;
     }
 
