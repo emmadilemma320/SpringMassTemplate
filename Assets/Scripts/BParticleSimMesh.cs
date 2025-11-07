@@ -78,7 +78,7 @@ public class BParticleSimMesh : MonoBehaviour
 
     // private variables
     private Mesh mesh;
-    private const int n = 8; // size of array
+    private const int n = 24; // size of array
     private BParticle[] particles = new BParticle[n]; 
     private BPlane plane;
     
@@ -123,11 +123,11 @@ public class BParticleSimMesh : MonoBehaviour
         cS.restLength = 0.0f;
         cS.attachPoint = plane.position;
 
-        // we get the vertices from the Mesh Filter, and Group By to avoid duplicates
-        var vertices = mesh.vertices.GroupBy(p => p);
+        // we get the vertices from the Mesh Filter
+        var vertices = mesh.vertices;
 
         //print(vertices.GetType());
-        //print(vertices.Count);
+        print(vertices.Length);
 
         int i = 0;
         foreach(var v in vertices){
@@ -142,7 +142,7 @@ public class BParticleSimMesh : MonoBehaviour
                 public List<BSpring> attachedSprings;   // all attached springs, as a list in case we want to modify later fast
                 public Vector3 currentForces; 
             ***/
-            p.position = transform.TransformPoint(v.FirstOrDefault());
+            p.position = transform.TransformPoint(v);
             p.velocity = Vector3.zero;
             p.mass = particle_mass;
             p.contactSpring = cS;
