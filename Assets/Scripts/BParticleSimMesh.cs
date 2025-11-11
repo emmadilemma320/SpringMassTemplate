@@ -223,10 +223,13 @@ public class BParticleSimMesh : MonoBehaviour
         ***/
 
         for(int i = 0; i < n; i++){
-            BParticle curr_particle = particles[i];
-
             // 1) gravity *if* useGravity is toggled on
+            // i use a separate loop for gravity so it does not override future forces
             particles[i].currentForces = (useGravity)? gravity : Vector3.zero;
+        }
+
+        for(int i = 0; i < n; i++){
+            BParticle curr_particle = particles[i];
 
             // 2) ground penetration penalty forces
                 // -k_s((x_p - x_g)dot n)n - k_d*v_p
