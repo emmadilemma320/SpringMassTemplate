@@ -125,9 +125,7 @@ public class BParticleSimMesh : MonoBehaviour
 
         // we get the vertices from the Mesh Filter
         var vertices = mesh.vertices;
-
-        //print(vertices.GetType());
-        print(vertices.Length);
+        
 
         int i = 0;
         foreach(var v in vertices){
@@ -186,7 +184,6 @@ public class BParticleSimMesh : MonoBehaviour
         for(int i = 0; i < n; i++) {
             new_velocitys[i] = particles[i].velocity + Time.fixedDeltaTime*(particles[i].currentForces/particles[i].mass); // v_{i, new} = v_i + dt*(F/m)
             new_positions[i] = particles[i].position + Time.fixedDeltaTime * new_velocitys[i]; // x_{i, new} = x_i + dt*v_{i, new}
-            print(new_velocitys[i]); print(new_positions[i]);
         }
 
         // Once we are done calculating each particles new velocity and position, we update them
@@ -200,16 +197,12 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
     private void updateMesh(){
-        var vertices = mesh.vertices.GroupBy(p => p);
-        int i = 0;
-        foreach (var v in vertices)
-        {
-            foreach (var d in v)
-            { // we have to update each of the duplicates
-                //d = transform.InverseTransformPoint(particles[i].position); // use the function InverseTransformPoint Mesh Coordinate system!
-            }
-            i++;
+        Vector3[] vertices = new Vector3[n];
+        for(int i = 0; i < n; i++){
+            // since we pulled them out in this order (i=0 of vertices --> i=0 of particles), we can put them in this order
+            vertices[i] = transform.InverseTransformPoint(particles[i].position);
         }
+        mesh.SetVertices(vertices);
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
     }
