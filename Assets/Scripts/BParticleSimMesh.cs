@@ -129,7 +129,6 @@ public class BParticleSimMesh : MonoBehaviour
 
         int i = 0;
         foreach(var v in vertices){
-
             BParticle p = new BParticle();
             /*** create new BParticle
                 public Vector3 position;                // position information
