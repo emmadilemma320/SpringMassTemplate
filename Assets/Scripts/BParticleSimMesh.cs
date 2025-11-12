@@ -140,9 +140,9 @@ public class BParticleSimMesh : MonoBehaviour
                 cS.kd = contactSpringKD; 
                 cS.ks = contactSpringKS;
                 cS.restLength = 0.0f;
-                cS.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
+                cS.attachPoint = new Vector3(p.position.x, plane.position.y, p.position.z);
             p.contactSpring = cS;
-            p.attachedToContact = true;
+            p.attachedToContact = Vector3.Dot(p.position - cS.attachPoint, plane.normal) < 0.0;
             p.attachedSprings = new List<BSpring>();
             p.currentForces = Vector3.zero;
             particles[i] = p; i++;
@@ -227,9 +227,13 @@ public class BParticleSimMesh : MonoBehaviour
             
             // first, we update the attach point to be directly under the position of the current particle (using the y-coor of the plane)
             curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
+            
             // Next, we detect if there is a collision using the dot product of the normal vector of the plane and the vector from the position of the particle to the attach point
             float d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal); // (x_p-x_g)dot n
-            if(d < 0.0){ // (x_p-x_g)dot n < 0
+            // if d < 0, there is a collision; if d > 0, there is no ground collision
+            curr_particle.attachedToContact = (d < 0); 
+            
+            if(curr_particle.attachedToContact){ // (x_p-x_g)dot n < 0
                 // if there is a collision, we calculate the ground contact penetration penalty spring equation given in the assignment
                 BContactSpring curr_contact_spring = curr_particle.contactSpring;
                 Vector3 ground_penalty = -1*curr_contact_spring.ks*d*plane.normal - curr_contact_spring.kd*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
