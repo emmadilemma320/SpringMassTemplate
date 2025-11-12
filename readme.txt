@@ -8,10 +8,11 @@
 	Done: initPlane() initializes the Place variable plane by finding the object GroundPlane in the scene and using it's position (for plane.position) and rotation (for plane.normal).
 
 4) [3] The ground contact penetration penalty springs are correctly and appropriately initialized when penetration is detected, just once during the duration of the penalty. The attach point for the penalty spring should be the nearest point on the plan from the particle at the moment the contact penetration is detection. The spring should have the correct property values and rest length. All penalty springs should have the properties k_s = 1000 and k_d = 20.
-	All penalty springs have the correct properties, and the attach point is correctly updated. Penetration pentaly forces are only calculated when a collision is detected.
+	Done: ground penalty springs are initialized, and attach points are updated as the particles are; attachedToContact is true when there is a collision and false when there is not one; for all contact springs, rest length = 0, k_s = 1000, and k_d = 20
 	
 
 5) [3] The ground contact penetration penalty springs are correctly and appropriately updated during the penalty and detached when the collision is resolved.
+	Done: attachedToContact is true when there is a collision and false when there is not one, ground penalty forces are only added to the forces when there is a collision
 
 6) [2] The vertices of the mesh are correctly updated, in the correct coordinate system, at the end of each simulation loop. Careful distinction here, you are creating "particles" mathematical objects with properties you update over time, the mesh is rendered based on where it's vertices are. You are expected to initialize a particle system using a mesh, update the particles through time, while updating the mesh vertices using the particle information.
 	Done: in FixedUpdate(), after the particles have been updated, updateMesh() is called. updateMesh() creates a new array called vertices using the positions of the particles and transform.InverseTransformPoint(), then the vertices of mesh are set to the array using mesh.SetVertices()
