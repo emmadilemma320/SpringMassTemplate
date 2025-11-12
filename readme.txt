@@ -18,6 +18,7 @@
 	Done: in FixedUpdate(), after the particles have been updated, updateMesh() is called. updateMesh() creates a new array called vertices using the positions of the particles and transform.InverseTransformPoint(), then the vertices of mesh are set to the array using mesh.SetVertices()
 
 7) [2] The particle-particle spring forces are correctly computed and the reflected force "trick" is used to reduce redundant computations of spring forces between particle pairs.
+	Done: particle-particle springs are initialized in such a way as to avoid duplicates, and the trick is used when calculating spring pairs
 
 8) [2] The mesh bounds and normals are correctly updated after the mesh is modified.
 	Done: updateMesh() calls mesh.RecalculateNormals() and mesh.RecalculateBounds() after updating the vertices of the mesh
