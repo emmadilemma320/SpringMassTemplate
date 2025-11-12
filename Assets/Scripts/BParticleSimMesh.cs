@@ -117,12 +117,6 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
     private void initParticles(){
-        BContactSpring cS= new BContactSpring();
-        cS.kd = contactSpringKD; 
-        cS.ks = contactSpringKS;
-        cS.restLength = 0.0f;
-        cS.attachPoint = plane.position;
-
         // we get the vertices from the Mesh Filter
         var vertices = mesh.vertices;
         
@@ -142,7 +136,7 @@ public class BParticleSimMesh : MonoBehaviour
             p.position = transform.TransformPoint(v);
             p.velocity = Vector3.zero;
             p.mass = particle_mass;
-            p.contactSpring = cS;
+            // we do not set the contactSpring thee cubes start above the ground
             p.attachedToContact = true;
             p.attachedSprings = new List<BSpring>();
             p.currentForces = Vector3.zero;
@@ -226,16 +220,42 @@ public class BParticleSimMesh : MonoBehaviour
             // 2) ground penetration penalty forces
                 // -k_s((x_p - x_g)dot n)n - k_d*v_p
             
-            // first, we update the attach point to be directly under the position of the current particle (using the y-coor of the plane)
-            curr_particle.contactSpring.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
+            // first, we check if there is currecntly a contact spring on our current particle 
+            // if not, we calculate the attach point to be directly under the position of the current particle (using the y-coor of the plane)
+            Vector3 attachPoint;
+            if (curr_particle.contactSpring is null){
+                attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
+            } else {
+                attachPoint = curr_particle.contactSpring;
+            }
+
             // Next, we detect if there is a collision using the dot product of the normal vector of the plane and the vector from the position of the particle to the attach point
-            float d = Vector3.Dot(curr_particle.position - curr_particle.contactSpring.attachPoint, plane.normal); // (x_p-x_g)dot n
-            if(d < 0.0){ // (x_p-x_g)dot n < 0
-                // if there is a collision, we calculate the ground contact penetration penalty spring equation given in the assignment
-                BContactSpring curr_contact_spring = curr_particle.contactSpring;
-                Vector3 ground_penalty = -1*curr_contact_spring.ks*d*plane.normal - curr_contact_spring.kd*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
+            float d = Vector3.Dot(curr_particle.position - attachPoint, plane.normal); // (x_p-x_g)dot n
+            if(d < 0.0){ // (x_p-x_g)dot n < 0 detects if there a collision with the plane
+                // if there is, and there is no contact spring, we create one
+                BContactSpring cS;
+                if(curr_particle.contactSpring is null){
+                    // first, we create a contact spring using our chosen kd and ks, a rest length of zero, and the attach point calculated above
+                    cS = new BContactSpring();
+                    cS.kd = contactSpringKD; 
+                    cS.ks = contactSpringKS;
+                    cS.restLength = 0.0f;
+                    cS.attachPoint = attachPoint;
+
+                    // then, we set the contact spring of our current particle to our newly created contact spring
+                    curr_particle.contactSpring = cS;
+                } else{ 
+                    // if the current particle already has a contactSpring, we use that one (since that means we have previously detected this collision)
+                    cS = curr_particle.contactSpring;
+                }
+
+                // since there is a collision, we calculate the ground contact penetration penalty using the spring equation given in the assignment
+                Vector3 ground_penalty = -1*cS.ks*d*plane.normal - cS.kd*curr_particle.velocity;// -k_s((x_p - x_g)dot n)n - k_d*v_p
                 // and add it to the current forces variable of our current particle
                 particles[i].currentForces += ground_penalty;
+            } else if(curr_particle.contactSpring != null){
+                // if the dot product is positive there is not a collision, so if this occurs and the particle has a contact spring we should delete it
+                curr_particle.contactSpring = null;
             }
 
 
