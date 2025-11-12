@@ -117,12 +117,6 @@ public class BParticleSimMesh : MonoBehaviour
     }
 
     private void initParticles(){
-        BContactSpring cS= new BContactSpring();
-        cS.kd = contactSpringKD; 
-        cS.ks = contactSpringKS;
-        cS.restLength = 0.0f;
-        cS.attachPoint = plane.position;
-
         // we get the vertices from the Mesh Filter
         var vertices = mesh.vertices;
         
@@ -142,6 +136,11 @@ public class BParticleSimMesh : MonoBehaviour
             p.position = transform.TransformPoint(v);
             p.velocity = Vector3.zero;
             p.mass = particle_mass;
+            BContactSpring cS= new BContactSpring();
+                cS.kd = contactSpringKD; 
+                cS.ks = contactSpringKS;
+                cS.restLength = 0.0f;
+                cS.attachPoint = new Vector3(curr_particle.position.x, plane.position.y, curr_particle.position.z);
             p.contactSpring = cS;
             p.attachedToContact = true;
             p.attachedSprings = new List<BSpring>();
