@@ -8,21 +8,27 @@
 	Done: initPlane() initializes the Place variable plane by finding the object GroundPlane in the scene and using it's position (for plane.position) and rotation (for plane.normal).
 
 4) [3] The ground contact penetration penalty springs are correctly and appropriately initialized when penetration is detected, just once during the duration of the penalty. The attach point for the penalty spring should be the nearest point on the plan from the particle at the moment the contact penetration is detection. The spring should have the correct property values and rest length. All penalty springs should have the properties k_s = 1000 and k_d = 20.
+	All penalty springs have the correct properties, and the attach point is correctly updated. Penetration pentaly forces are only calculated when a collision is detected.
 	
 
 5) [3] The ground contact penetration penalty springs are correctly and appropriately updated during the penalty and detached when the collision is resolved.
 
 6) [2] The vertices of the mesh are correctly updated, in the correct coordinate system, at the end of each simulation loop. Careful distinction here, you are creating "particles" mathematical objects with properties you update over time, the mesh is rendered based on where it's vertices are. You are expected to initialize a particle system using a mesh, update the particles through time, while updating the mesh vertices using the particle information.
+	Done: in FixedUpdate(), after the particles have been updated, updateMesh() is called. updateMesh() creates a new array called vertices using the positions of the particles and transform.InverseTransformPoint(), then the vertices of mesh are set to the array using mesh.SetVertices()
 
 7) [2] The particle-particle spring forces are correctly computed and the reflected force "trick" is used to reduce redundant computations of spring forces between particle pairs.
 
 8) [2] The mesh bounds and normals are correctly updated after the mesh is modified.
+	Done: updateMesh() calls mesh.RecalculateNormals() and mesh.RecalculateBounds() after updating the vertices of the mesh
 
 9) [2] The symplectic Euler integration scheme is implemented correctly.
+	Done: the new velocities and positions for the particles are calculated using the symplectic Euler integration, which calculates the velocity using the previous velocity and current forces and then calculates the position using the previous position and *new* velocity. Additionally, the new velocities/positions are calculated for all particles, and then updated for all particles
 
 10) [3] The simulator loop correctly updates all particle states using the correct update callback and time. Recall the lesson on simulator loops.
+	Done: the updating of position and velocity is done in the FixedUpdate() function using fixedDeltaTime
 
 11) [3] The recorded test case requires that the: blue cube has particle spring properties k_s = 200 and k_d = 0 the red cube k_s = 80 and k_d = 0.8 and the green cube k_s = 45 and k_d = 0.2.
+	Done
 
 12) You must submit a SINGLE file called <lastname>-<firstname>-a2-p2.zip (replace the <> with your information) that includes all the necessary files. You must follow the .gitignore pattern for Unity. [-2 marks if you do not follow these guidelines]
 	Done
